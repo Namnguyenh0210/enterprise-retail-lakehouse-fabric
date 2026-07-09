@@ -1,0 +1,84 @@
+{
+  "name": "PL_INGEST_CUSTOMERS",
+  "description": "Orchestrates the full Medallion pipeline: Bronze → Silver → Gold for Olist Customer data.",
+  "activities": [
+    {
+      "name": "NB_01_Bronze_Ingest_Customers",
+      "type": "TridentNotebook",
+      "description": "Ingest raw CSV from Lakehouse Files zone into Bronze Delta table with audit metadata.",
+      "dependsOn": [],
+      "typeProperties": {
+        "notebookId": "NB_01_Bronze_Ingest_Customers",
+        "parameters": {
+          "RAW_FILE_NAME": {
+            "value": "olist_customers_dataset.csv",
+            "type": "string"
+          }
+        }
+      },
+      "policy": {
+        "timeout": "0.01:00:00",
+        "retry": 1,
+        "retryIntervalInSeconds": 30
+      }
+    },
+    {
+      "name": "NB_11_Silver_Clean_Customers",
+      "type": "TridentNotebook",
+      "description": "Cleanse, standardize, DQ-check Bronze data, UPSERT to Silver, quarantine bad records.",
+      "dependsOn": [
+        {
+          "activity": "NB_01_Bronze_Ingest_Customers",
+          "dependencyConditions": ["Succeeded"]
+        }
+      ],
+      "typeProperties": {
+        "notebookId": "NB_11_Silver_Clean_Customers",
+        "parameters": {
+          "RUN_OPTIMIZATION": {
+            "value": "true",
+            "type": "bool"
+          }
+        }
+      },
+      "policy": {
+        "timeout": "0.01:00:00",
+        "retry": 1,
+        "retryIntervalInSeconds": 30
+      }
+    },
+    {
+      "name": "NB_21_Gold_Dim_Customer",
+      "type": "TridentNotebook",
+      "description": "Transform Silver to Gold Dim_Customer with SCD Type 2 history tracking.",
+      "dependsOn": [
+        {
+          "activity": "NB_11_Silver_Clean_Customers",
+          "dependencyConditions": ["Succeeded"]
+        }
+      ],
+      "typeProperties": {
+        "notebookId": "NB_21_Gold_Dim_Customer",
+        "parameters": {
+          "RUN_OPTIMIZATION": {
+            "value": "true",
+            "type": "bool"
+          }
+        }
+      },
+      "policy": {
+        "timeout": "0.01:00:00",
+        "retry": 1,
+        "retryIntervalInSeconds": 30
+      }
+    }
+  ],
+  "parameters": {},
+  "annotations": [
+    "olist",
+    "medallion",
+    "customers",
+    "delta",
+    "fabric"
+  ]
+}
